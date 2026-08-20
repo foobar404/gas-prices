@@ -2634,6 +2634,10 @@ function getProductoSummaryKey(entry) {
         return 'Premium';
     }
 
+    if (/^gasolinas?$/i.test(producto)) {
+        return 'Regular';
+    }
+
     return producto;
 }
 
