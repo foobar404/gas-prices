@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gas Prices</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ink: '#17211b',
+            moss: '#536b4f',
+            cream: '#f4f1e8',
+            citrus: '#d9e86c'
+          },
+          fontFamily: {
+            display: ['Georgia', 'serif'],
+            sans: ['ui-sans-serif', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="min-h-screen bg-cream text-ink antialiased">
+  <main class="mx-auto min-h-screen max-w-6xl px-5 py-8 sm:px-8 lg:px-12">
+    <header class="flex flex-col gap-6 border-b border-ink/15 pb-8 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <p class="mb-3 text-xs font-bold uppercase tracking-[0.24em] text-moss">Fuel monitor</p>
+        <h1 class="font-display text-5xl leading-none tracking-tight sm:text-7xl">Gas prices<span class="text-moss">.</span></h1>
+        <p class="mt-4 max-w-md text-sm leading-6 text-ink/65">Live price data collected from the official Mexican government source.</p>
+      </div>
+      <button id="refresh-button" type="button" class="inline-flex items-center justify-center gap-2 self-start rounded-full bg-ink px-5 py-3 text-sm font-bold text-white transition hover:bg-moss focus:outline-none focus:ring-2 focus:ring-moss focus:ring-offset-2 focus:ring-offset-cream sm:self-auto">
+        <svg id="refresh-icon" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+          <path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 5v4h4M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Refresh data
+      </button>
+    </header>
+
+    <section class="mb-6 overflow-hidden rounded-2xl bg-white ring-1 ring-ink/10">
+      <div class="flex items-center justify-between border-b border-ink/10 px-5 py-4 sm:px-7">
+        <div>
+          <h2 class="text-lg font-bold">State averages</h2>
+          <p id="state-table-message" class="mt-1 text-sm text-ink/55">Loading state averages...</p>
+        </div>
+        <button id="download-state-csv" type="button" class="inline-flex items-center gap-2 rounded-full bg-citrus px-3 py-2 text-xs font-bold text-ink transition hover:bg-ink hover:text-white focus:outline-none focus:ring-2 focus:ring-moss focus:ring-offset-2">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Download CSV
+        </button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[520px] text-left text-sm">
+          <thead id="state-table-head" class="bg-moss text-xs uppercase tracking-[0.14em] text-white/80"></thead>
+          <tbody id="state-table-body" class="divide-y divide-ink/10"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="overflow-hidden rounded-2xl bg-white ring-1 ring-ink/10">
+      <div class="flex items-center justify-between border-b border-ink/10 px-5 py-4 sm:px-7">
+        <div>
+          <h2 class="text-lg font-bold">Current listings</h2>
+          <p id="table-message" class="mt-1 text-sm text-ink/55">Loading price data...</p>
+        </div>
+        <button id="download-table-csv" type="button" class="inline-flex items-center gap-2 rounded-full bg-cream px-3 py-2 text-xs font-bold text-moss transition hover:bg-moss hover:text-white focus:outline-none focus:ring-2 focus:ring-moss focus:ring-offset-2">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Download CSV
+        </button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[640px] text-left text-sm">
+          <thead id="table-head" class="bg-ink text-xs uppercase tracking-[0.14em] text-white/70"></thead>
+          <tbody id="table-body" class="divide-y divide-ink/10"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="flex flex-col gap-2 py-6 text-xs text-ink/45 sm:flex-row sm:items-center sm:justify-between">
+      <span>Data from CNE</span>
+      <a id="source-link" href="#" target="_blank" rel="noreferrer" class="truncate underline decoration-ink/20 underline-offset-4 hover:text-moss">Official source</a>
+    </footer>
+  </main>
+
+  <script src="app.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "start": "node ./node-api/scrapper.js"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0"
+  }
+}
