@@ -2626,6 +2626,17 @@ async function fetchPetroliferos(combo) {
     }
 }
 
+function getProductoSummaryKey(entry) {
+    const producto = String(entry.Producto);
+    const subProducto = typeof entry.SubProducto === 'string' ? entry.SubProducto : '';
+
+    if (/^gas/i.test(producto) && /\bpremium\b/i.test(subProducto)) {
+        return 'Premium';
+    }
+
+    return producto;
+}
+
 function summarizeResult(result) {
     const entries = Array.isArray(result.data?.Value) ? result.data.Value : [];
     const products = new Map();
@@ -2635,9 +2646,10 @@ function summarizeResult(result) {
             continue;
         }
 
-        const prices = products.get(entry.Producto) || [];
+        const producto = getProductoSummaryKey(entry);
+        const prices = products.get(producto) || [];
         prices.push(entry.PrecioVigente);
-        products.set(entry.Producto, prices);
+        products.set(producto, prices);
     }
 
     const summaries = [...products.entries()].map(([producto, prices]) => {
@@ -2733,6 +2745,7 @@ module.exports = {
     getMunicipalityCombos,
     buildPetroliferosUrl,
     fetchPetroliferos,
+    getProductoSummaryKey,
     summarizeResult,
     cleanGasPrices,
     scrapeGasPrices,
