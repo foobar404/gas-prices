@@ -8,7 +8,8 @@ function sendGasPrices(response) {
     fs.readFile(OUTPUT_FILE, 'utf8')
         .then((gasPricesJson) => {
             response.writeHead(200);
-            response.end(JSON.stringify({ rows: JSON.parse(gasPricesJson) }));
+            const data = JSON.parse(gasPricesJson);
+            response.end(JSON.stringify(Array.isArray(data) ? { rows: data } : data));
         })
         .catch((error) => {
             console.error(error);
@@ -19,9 +20,9 @@ function sendGasPrices(response) {
 
 function refreshGasPrices(response) {
     scrapeAndSave()
-        .then(({ data }) => {
+        .then(({ data, scrapedAt }) => {
             response.writeHead(200);
-            response.end(JSON.stringify({ rows: data }));
+            response.end(JSON.stringify({ rows: data, scrapedAt }));
         })
         .catch((error) => {
             console.error(error);

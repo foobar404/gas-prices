@@ -2717,16 +2717,24 @@ async function scrapeGasPrices({ limit, concurrency = DEFAULT_CONCURRENCY } = {}
 
 async function saveGasPrices(data, outputFile = OUTPUT_FILE) {
     const cleanedData = Array.isArray(data) ? data : cleanGasPrices(data);
+    const outputData = Array.isArray(data)
+        ? { rows: cleanedData, scrapedAt: new Date().toISOString() }
+        : {
+            source: data.source,
+            scrapedAt: data.scrapedAt,
+            totalCombos: data.totalCombos,
+            scrapedCombos: data.scrapedCombos,
+            rows: cleanedData
+        };
 
-    await fs.writeFile(outputFile, `${JSON.stringify(cleanedData, null, 2)}\n`, 'utf8');
+    await fs.writeFile(outputFile, `${JSON.stringify(outputData, null, 2)}\n`, 'utf8');
     return outputFile;
 }
 
 async function scrapeAndSave(options = {}) {
     const data = await scrapeGasPrices(options);
-    const cleanedData = cleanGasPrices(data);
-    const outputFile = await saveGasPrices(cleanedData, options.outputFile);
-    return { outputFile, data: cleanedData };
+    const outputFile = await saveGasPrices(data, options.outputFile);
+    return { outputFile, data: cleanGasPrices(data), scrapedAt: data.scrapedAt };
 }
 
 if (require.main === module) {

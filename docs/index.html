@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gas Prices</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
   <script>
     tailwind.config = {
       theme: {
@@ -23,22 +24,127 @@
       }
     };
   </script>
+  <style>
+    :root {
+      --mexico-green: #315d45;
+      --mexico-red: #c84f4f;
+      --mexico-paper: #f4f1e8;
+    }
+
+    body {
+      background-image: radial-gradient(circle at 1px 1px, rgba(49, 93, 69, 0.08) 1px, transparent 0);
+      background-size: 18px 18px;
+    }
+
+    .mexico-stripe {
+      background: linear-gradient(90deg, var(--mexico-green) 0 33.33%, var(--mexico-paper) 33.33% 66.66%, var(--mexico-red) 66.66%);
+    }
+
+    .mexico-accent {
+      position: relative;
+    }
+
+    .mexico-accent::after {
+      background: var(--mexico-red);
+      bottom: -1px;
+      content: '';
+      height: 3px;
+      left: 0;
+      position: absolute;
+      width: 4.5rem;
+    }
+  </style>
 </head>
 <body class="min-h-screen bg-cream text-ink antialiased">
   <main class="mx-auto min-h-screen max-w-6xl px-5 py-8 sm:px-8 lg:px-12">
+    <div class="mexico-stripe mb-6 h-1.5 rounded-full" aria-hidden="true"></div>
     <header class="flex flex-col gap-6 border-b border-ink/15 pb-8 sm:flex-row sm:items-end sm:justify-between">
       <div>
         <p class="mb-3 text-xs font-bold uppercase tracking-[0.24em] text-moss">Fuel monitor</p>
-        <h1 class="font-display text-5xl leading-none tracking-tight sm:text-7xl">Gas prices<span class="text-moss">.</span></h1>
+        <h1 class="mexico-accent pb-3 font-display text-5xl leading-none tracking-tight sm:text-7xl">Gas prices<span class="text-moss">.</span></h1>
         <p class="mt-4 max-w-md text-sm leading-6 text-ink/65">Live price data collected from the official Mexican government source.</p>
       </div>
-      <button id="refresh-button" type="button" class="inline-flex items-center justify-center gap-2 self-start rounded-full bg-ink px-5 py-3 text-sm font-bold text-white transition hover:bg-moss focus:outline-none focus:ring-2 focus:ring-moss focus:ring-offset-2 focus:ring-offset-cream sm:self-auto">
-        <svg id="refresh-icon" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
-          <path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 5v4h4M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        Refresh data
-      </button>
+      <div class="flex flex-col items-start gap-3 sm:items-end">
+        <span id="last-updated" class="rounded-full border border-moss/25 bg-white/70 px-3 py-1.5 text-xs font-bold text-moss">Last updated unavailable</span>
+        <button id="refresh-button" type="button" class="inline-flex items-center justify-center gap-2 self-start rounded-full bg-ink px-5 py-3 text-sm font-bold text-white transition hover:bg-moss focus:outline-none focus:ring-2 focus:ring-moss focus:ring-offset-2 focus:ring-offset-cream sm:self-auto">
+          <svg id="refresh-icon" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+            <path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 5v4h4M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Refresh data
+        </button>
+      </div>
     </header>
+
+    <section class="my-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Market summary">
+      <article class="rounded-2xl bg-white p-5 ring-1 ring-ink/10">
+        <p class="text-xs font-bold uppercase tracking-[0.16em] text-moss">Cheapest state</p>
+        <p id="cheapest-state" class="mt-3 text-2xl font-bold">-</p>
+        <p id="cheapest-state-value" class="mt-1 text-sm text-ink/55">Loading...</p>
+      </article>
+      <article class="rounded-2xl bg-white p-5 ring-1 ring-ink/10">
+        <p class="text-xs font-bold uppercase tracking-[0.16em] text-moss">Most expensive state</p>
+        <p id="expensive-state" class="mt-3 text-2xl font-bold">-</p>
+        <p id="expensive-state-value" class="mt-1 text-sm text-ink/55">Loading...</p>
+      </article>
+      <article class="rounded-2xl bg-white p-5 ring-1 ring-ink/10">
+        <p class="text-xs font-bold uppercase tracking-[0.16em] text-moss">Biggest price spread</p>
+        <p id="biggest-spread-state" class="mt-3 text-2xl font-bold">-</p>
+        <p id="biggest-spread-value" class="mt-1 text-sm text-ink/55">Loading...</p>
+      </article>
+      <article class="rounded-2xl bg-white p-5 ring-1 ring-ink/10">
+        <p class="text-xs font-bold uppercase tracking-[0.16em] text-moss">National average</p>
+        <div id="national-averages" class="mt-3 space-y-1 text-sm font-bold">Loading...</div>
+      </article>
+    </section>
+
+    <section class="my-6 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+      <article class="overflow-hidden rounded-2xl bg-ink p-5 text-white sm:p-7">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-[0.18em] text-citrus">Market snapshot</p>
+            <h2 class="mt-2 text-xl font-bold">Price range by fuel</h2>
+            <p id="fuel-chart-message" class="mt-1 text-sm text-white/60">Loading chart data...</p>
+          </div>
+          <span class="rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-citrus">MXN / L</span>
+        </div>
+        <div class="relative mt-6 h-64 sm:h-72">
+          <canvas id="fuel-chart" aria-label="Average, minimum, and maximum fuel prices"></canvas>
+        </div>
+      </article>
+
+      <article class="overflow-hidden rounded-2xl bg-white p-5 ring-1 ring-ink/10 sm:p-7">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-[0.18em] text-moss">State comparison</p>
+            <h2 class="mt-2 text-xl font-bold">Average price by state</h2>
+            <p id="state-chart-message" class="mt-1 text-sm text-ink/55">Loading chart data...</p>
+          </div>
+          <label class="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-ink/55">
+            <span class="sr-only">Fuel type</span>
+            <select id="state-chart-product" class="rounded-full border border-ink/15 bg-cream px-3 py-2 text-xs font-bold normal-case tracking-normal text-ink focus:border-moss focus:outline-none focus:ring-2 focus:ring-moss/30"></select>
+          </label>
+        </div>
+        <div class="relative mt-6 h-64 overflow-y-auto pr-2 sm:h-72">
+          <canvas id="state-chart" aria-label="Average fuel price by state"></canvas>
+        </div>
+      </article>
+    </section>
+
+    <section class="mb-6 overflow-hidden rounded-2xl bg-white ring-1 ring-ink/10">
+      <div class="flex flex-col gap-3 border-b border-ink/10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-7">
+        <div>
+          <p class="text-xs font-bold uppercase tracking-[0.18em] text-moss">Geographic view</p>
+          <h2 class="mt-2 text-xl font-bold">Average price across Mexico</h2>
+          <p id="map-message" class="mt-1 text-sm text-ink/55">Loading map data...</p>
+        </div>
+        <div class="flex flex-col items-start gap-3 sm:items-end">
+          <div id="map-product-toggle" class="flex rounded-full bg-cream p-1" role="group" aria-label="Map fuel type"></div>
+          <div id="map-legend" class="flex flex-wrap items-center gap-2 text-xs font-bold text-ink/55"></div>
+          <div id="map-highlights" class="flex flex-wrap gap-2 text-xs font-bold"></div>
+        </div>
+      </div>
+      <div id="mexico-map" class="h-[26rem] w-full bg-[#dfe8df] sm:h-[34rem]" aria-label="Map of average fuel prices by Mexican state"></div>
+    </section>
 
     <section class="mb-6 overflow-hidden rounded-2xl bg-white ring-1 ring-ink/10">
       <div class="flex items-center justify-between border-b border-ink/10 px-5 py-4 sm:px-7">
@@ -84,6 +190,8 @@
     </footer>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="app.js" defer></script>
 </body>
 </html>
