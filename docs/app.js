@@ -1,5 +1,5 @@
 // const apiUrl = 'http://localhost:3000/api/gas-prices';
-const dataUrl = '../node-api/gas-prices.json';
+const dataUrl = './gas-prices.json';
 const refreshButton = document.querySelector('#refresh-button');
 const refreshIcon = document.querySelector('#refresh-icon');
 const tableMessage = document.querySelector('#table-message');
