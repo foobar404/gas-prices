@@ -1,7 +1,5 @@
-// const apiUrl = 'http://localhost:3000/api/gas-prices';
-const dataUrl = './gas-prices.json';
-const refreshButton = document.querySelector('#refresh-button');
-const refreshIcon = document.querySelector('#refresh-icon');
+const firebaseFunctionsUrl = 'https://us-central1-gas-prices-9b229.cloudfunctions.net';
+const dataUrl = `${firebaseFunctionsUrl}/getGasPrices`;
 const tableMessage = document.querySelector('#table-message');
 const tableHead = document.querySelector('#table-head');
 const tableBody = document.querySelector('#table-body');
@@ -14,6 +12,9 @@ const sourceLink = document.querySelector('#source-link');
 const fuelChartMessage = document.querySelector('#fuel-chart-message');
 const stateChartMessage = document.querySelector('#state-chart-message');
 const stateChartProduct = document.querySelector('#state-chart-product');
+const timelineRange = document.querySelector('#timeline-range');
+const timelineState = document.querySelector('#timeline-state');
+const timelineMessage = document.querySelector('#timeline-message');
 const mapMessage = document.querySelector('#map-message');
 const mapLegend = document.querySelector('#map-legend');
 const mapProductToggle = document.querySelector('#map-product-toggle');
@@ -28,6 +29,7 @@ const nationalAverages = document.querySelector('#national-averages');
 const lastUpdated = document.querySelector('#last-updated');
 let fuelChart;
 let stateChart;
+let timelineChart;
 let mexicoMap;
 let mexicoLayer;
 let mapProduct = 'Regular';
@@ -36,6 +38,7 @@ let fuelRows = [];
 let scrapedAt;
 
 const mapUrl = 'https://raw.githubusercontent.com/angelnmara/geojson/master/mexicoHigh.json';
+const historyUrl = `${firebaseFunctionsUrl}/getGasPriceHistory`;
 
 function escapeHtml(value) {
   return String(value ?? '-')
@@ -351,14 +354,65 @@ function downloadCsv(rows, filename) {
   URL.revokeObjectURL(link.href);
 }
 
+function renderTimeline(data) {
+  const products = ['Regular', 'Premium', 'Diésel'];
+  const colors = { Regular: '#d9e86c', Premium: '#f28f6b', Diésel: '#9fc7ba' };
+  const snapshots = data.snapshots || [];
+  timelineMessage.textContent = snapshots.length
+    ? `${snapshots.length} snapshot${snapshots.length === 1 ? '' : 's'} for ${data.state}.`
+    : 'No snapshots are available for this period yet.';
+  timelineChart?.destroy();
+  timelineChart = new Chart(document.querySelector('#timeline-chart'), {
+    type: 'line',
+    data: {
+      labels: snapshots.map((snapshot) => new Intl.DateTimeFormat('en-MX', { month: 'short', day: 'numeric' }).format(new Date(snapshot.scrapedAt))),
+      datasets: products.map((product) => ({
+        label: product,
+        data: snapshots.map((snapshot) => snapshot[product] ?? null),
+        borderColor: colors[product],
+        backgroundColor: colors[product],
+        pointRadius: snapshots.length === 1 ? 5 : 3,
+        pointHoverRadius: 6,
+        borderWidth: 3,
+        tension: 0.35,
+        spanGaps: true
+      }))
+    },
+    options: {
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { labels: { color: '#ffffff', usePointStyle: true, boxWidth: 8 } } },
+      scales: {
+        x: { ticks: { color: '#ffffff' }, grid: { color: 'rgba(255,255,255,0.08)' } },
+        y: { ticks: { color: '#ffffff', callback: (value) => `$${value}` }, grid: { color: 'rgba(255,255,255,0.12)' } }
+      }
+    }
+  });
+}
+
+async function loadTimeline() {
+  const params = new URLSearchParams({ range: timelineRange.value });
+  if (timelineState.value) params.set('state', timelineState.value);
+  try {
+    const response = await fetch(`${historyUrl}?${params}`);
+    if (!response.ok) throw new Error('History request failed');
+    const data = await response.json();
+    if (!timelineState.dataset.loaded) {
+      timelineState.innerHTML = '<option value="">All states</option>' + data.states.map((state) => `<option value="${escapeHtml(state)}">${escapeHtml(state)}</option>`).join('');
+      timelineState.dataset.loaded = 'true';
+    }
+    renderTimeline(data);
+  } catch (error) {
+    timelineMessage.textContent = 'Could not load historical gas prices.';
+  }
+}
+
 async function loadPrices() {
-  refreshButton.disabled = true;
-  refreshIcon.classList.add('animate-spin');
   tableMessage.textContent = 'Loading price data...';
 
   try {
     const response = await fetch(dataUrl);
-    if (!response.ok) throw new Error('Local data request failed');
+    if (!response.ok) throw new Error('Gas prices request failed');
     const data = await response.json();
     scrapedAt = data.scrapedAt;
     lastUpdated.textContent = scrapedAt
@@ -372,14 +426,13 @@ async function loadPrices() {
     renderCharts(rows, stateAverageRows);
     sourceLink.href = data.source || '#';
   } catch (error) {
-    tableMessage.textContent = 'Could not load the local gas-prices.json file.';
-  } finally {
-    refreshButton.disabled = false;
-    refreshIcon.classList.remove('animate-spin');
+    tableMessage.textContent = 'Could not load the latest gas prices file.';
   }
 }
 
-refreshButton.addEventListener('click', loadPrices);
 downloadStateCsv.addEventListener('click', () => downloadCsv(stateAverageRows, 'state-averages.csv'));
 downloadTableCsv.addEventListener('click', () => downloadCsv(fuelRows, 'municipality-prices.csv'));
+timelineRange.addEventListener('change', loadTimeline);
+timelineState.addEventListener('change', loadTimeline);
 loadPrices();
+loadTimeline();
