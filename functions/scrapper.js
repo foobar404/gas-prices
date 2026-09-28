@@ -2641,15 +2641,15 @@ function getProductoSummaryKey(entry) {
     return producto;
 }
 
-function summarizeResult(result) {
+function getParsedPriceEntries(result) {
     const entries = Array.isArray(result.data?.Value) ? result.data.Value : [];
+    return entries.filter((entry) => typeof entry.PrecioVigente === 'number' && entry.Producto);
+}
+
+function summarizeResult(result) {
     const products = new Map();
 
-    for (const entry of entries) {
-        if (typeof entry.PrecioVigente !== 'number' || !entry.Producto) {
-            continue;
-        }
-
+    for (const entry of getParsedPriceEntries(result)) {
         const producto = getProductoSummaryKey(entry);
         const prices = products.get(producto) || [];
         prices.push(entry.PrecioVigente);
@@ -2663,7 +2663,7 @@ function summarizeResult(result) {
             state: result.state,
             municipality: result.municipality,
             Producto: producto,
-            average: Number((total / prices.length).toFixed(2)),
+            average: Number((total / prices.length).toFixed(4)),
             min: Math.min(...prices),
             max: Math.max(...prices)
         };
@@ -2711,6 +2711,7 @@ async function scrapeGasPrices({ limit, concurrency = DEFAULT_CONCURRENCY } = {}
         scrapedAt: new Date().toISOString(),
         totalCombos: combos.length,
         scrapedCombos: selectedCombos.length,
+        parsedRecordCount: results.reduce((total, result) => total + getParsedPriceEntries(result).length, 0),
         results
     };
 }

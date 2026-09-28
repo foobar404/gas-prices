@@ -56,26 +56,160 @@
     }
 
     #timeline-range option,
-    #timeline-state option {
+    #timeline-state option,
+    #timeline-product option {
       background: #f4f1e8;
       color: #17211b;
+    }
+
+    .timeline-panel {
+      background: radial-gradient(ellipse at top right, rgba(217, 232, 108, 0.1), transparent 42%), #20382d;
+      box-shadow: 0 24px 64px rgba(23, 33, 27, 0.16);
+    }
+
+    .timeline-chart-surface {
+      background-color: #e3e8e8;
+      background-image: linear-gradient(rgba(48, 68, 70, 0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(48, 68, 70, 0.07) 1px, transparent 1px);
+      background-size: 24px 24px;
+      box-shadow: inset 0 0 0 1px rgba(23, 33, 27, 0.08);
+    }
+
+    .view-link[aria-current="page"] {
+      background: #17211b;
+      color: #fff;
+    }
+
+    [data-view][hidden] {
+      display: none !important;
+    }
+
+    @media (min-width: 1024px) {
+      #page-shell {
+        --market-nav-width: 4.5rem;
+        width: min(80rem, calc(100% - var(--market-nav-width)));
+        margin-left: var(--market-nav-width);
+        margin-right: auto;
+      }
+
+      #page-shell[data-nav-collapsed="false"] {
+        --market-nav-width: 13rem;
+      }
+
+      .dashboard-layout {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0;
+      }
+
+      #market-nav {
+        position: fixed;
+        inset: 0 auto 0 0;
+        z-index: 30;
+        width: var(--market-nav-width);
+        height: 100vh;
+        height: 100dvh;
+        margin: 0;
+        padding: 1.25rem 0.5rem;
+        flex-direction: column;
+        align-items: stretch;
+        overflow-x: hidden;
+        overflow-y: auto;
+        border: 0;
+        border-right: 1px solid rgba(23, 33, 27, 0.12);
+        border-radius: 0;
+        box-shadow: 4px 0 24px rgba(23, 33, 27, 0.06);
+      }
+
+      #page-shell[data-nav-collapsed="true"] .view-nav-heading,
+      #page-shell[data-nav-collapsed="true"] .view-label {
+        display: none;
+      }
+
+      #page-shell[data-nav-collapsed="true"] #market-nav > div {
+        justify-content: center;
+        padding-inline: 0;
+      }
+
+      #page-shell[data-nav-collapsed="true"] .view-link {
+        justify-content: center;
+        padding-inline: 0;
+      }
+
+      #page-shell[data-nav-collapsed="true"] #nav-collapse-toggle svg {
+        transform: rotate(180deg);
+      }
     }
   </style>
 </head>
 <body class="min-h-screen bg-cream text-ink antialiased">
-  <main class="mx-auto min-h-screen max-w-6xl px-5 py-8 sm:px-8 lg:px-12">
-    <div class="mexico-stripe mb-6 h-1.5 rounded-full" aria-hidden="true"></div>
-    <header class="flex flex-col gap-6 border-b border-ink/15 pb-8 sm:flex-row sm:items-end sm:justify-between">
+  <main id="page-shell" data-nav-collapsed="true" class="mx-auto min-h-screen max-w-7xl px-5 py-3 sm:px-8 sm:py-4 lg:px-12">
+    <div class="mexico-stripe mb-3 h-1.5 rounded-full" aria-hidden="true"></div>
+    <header class="flex flex-col gap-2 border-b border-ink/15 pb-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <p class="mb-3 text-xs font-bold uppercase tracking-[0.24em] text-moss">Fuel monitor</p>
-        <h1 class="mexico-accent pb-3 font-display text-5xl leading-none tracking-tight sm:text-7xl">Gas prices<span class="text-moss">.</span></h1>
-        <p class="mt-4 max-w-md text-sm leading-6 text-ink/65">Live price data collected from the official Mexican government source.</p>
+        <p class="mb-1 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-moss">Fuel monitor</p>
+        <h1 class="mexico-accent pb-2 font-display text-4xl leading-none tracking-tight sm:text-6xl">Gas prices<span class="text-moss">.</span></h1>
+        <p class="mt-2 max-w-md text-sm leading-5 text-ink/65">Live price data collected from the official Mexican government source.</p>
       </div>
-      <div class="flex flex-col items-start gap-3 sm:items-end">
+      <div class="flex flex-wrap items-center gap-2 sm:justify-end">
         <span id="last-updated" class="rounded-full border border-moss/25 bg-white/70 px-3 py-1.5 text-xs font-bold text-moss">Last updated unavailable</span>
+        <span id="parsed-record-count" hidden class="rounded-full border border-ink/10 bg-white/70 px-3 py-1.5 text-xs font-semibold text-ink/60"></span>
       </div>
     </header>
 
+    <div id="dashboard-layout" class="dashboard-layout grid grid-cols-1 gap-6 lg:gap-8" data-nav-collapsed="true">
+      <nav id="market-nav" class="sticky top-2 z-20 -mx-2 flex gap-1 overflow-x-auto rounded-xl border border-ink/10 bg-cream/95 p-2 shadow-sm backdrop-blur sm:top-3 lg:top-6 lg:mx-0 lg:flex-col lg:gap-1 lg:self-start lg:p-3" aria-label="Market views">
+        <div class="mb-1 hidden items-center justify-between px-3 lg:flex">
+          <p class="view-nav-heading text-[0.65rem] font-bold uppercase tracking-[0.16em] text-ink/40">Views</p>
+          <button id="nav-collapse-toggle" type="button" aria-label="Expand navigation" aria-controls="market-nav" aria-expanded="false" title="Expand navigation" class="hidden h-8 w-8 items-center justify-center rounded-lg text-ink/55 transition hover:bg-white hover:text-ink focus:outline-none focus:ring-2 focus:ring-moss/40 lg:inline-flex">
+            <svg class="h-4 w-4 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16m9-10-3 2 3 2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <button type="button" data-view-target="view-history" aria-controls="view-history" aria-current="page" aria-label="The market over time" title="The market over time" class="view-link flex shrink-0 items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-ink/65 transition hover:bg-white hover:text-ink focus:outline-none focus:ring-2 focus:ring-moss/40 lg:w-full"><svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 3v18h18M7 14l4-4 4 3 5-7" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="view-label">The market over time</span></button>
+        <button type="button" data-view-target="view-snapshot" aria-controls="view-snapshot" aria-label="Market snapshot" title="Market snapshot" class="view-link flex shrink-0 items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-ink/65 transition hover:bg-white hover:text-ink focus:outline-none focus:ring-2 focus:ring-moss/40 lg:w-full"><svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 19V5m0 14h17M8 15v-4m5 4V7m5 8V9" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="view-label">Market snapshot</span></button>
+        <button type="button" data-view-target="view-map" aria-controls="view-map" aria-label="State map" title="State map" class="view-link flex shrink-0 items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-ink/65 transition hover:bg-white hover:text-ink focus:outline-none focus:ring-2 focus:ring-moss/40 lg:w-full"><svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3zM9 3v15m6-12v15" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="view-label">State map</span></button>
+        <button type="button" data-view-target="view-averages" aria-controls="view-averages" aria-label="State averages" title="State averages" class="view-link flex shrink-0 items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-ink/65 transition hover:bg-white hover:text-ink focus:outline-none focus:ring-2 focus:ring-moss/40 lg:w-full"><svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16m6-16v16" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="view-label">State averages</span></button>
+        <button type="button" data-view-target="view-listings" aria-controls="view-listings" aria-label="Current listings" title="Current listings" class="view-link flex shrink-0 items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-ink/65 transition hover:bg-white hover:text-ink focus:outline-none focus:ring-2 focus:ring-moss/40 lg:w-full"><svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="view-label">Current listings</span></button>
+      </nav>
+
+      <div class="min-w-0">
+    <section id="view-history" data-view class="timeline-panel my-8 flex min-h-[80vh] flex-col overflow-hidden rounded-2xl p-4 text-white ring-1 ring-ink/10 sm:p-6 lg:my-0 lg:p-7" aria-label="The market over time">
+      <div class="flex flex-col gap-4 border-b border-white/15 pb-4 xl:flex-row xl:items-end xl:justify-between">
+        <div class="max-w-2xl">
+          <p class="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-citrus"><span class="h-1.5 w-1.5 rounded-full bg-citrus" aria-hidden="true"></span>Price history</p>
+          <h2 class="mt-2 font-display text-2xl font-bold leading-tight sm:text-3xl">The market over time</h2>
+          <p class="mt-1 max-w-xl text-xs leading-5 text-white/65">Follow average pump prices across Mexico. The vertical scale is zoomed to show sub-cent changes.</p>
+          <p id="timeline-message" class="mt-2 inline-flex min-h-7 items-center rounded-full border border-white/15 bg-white/[0.06] px-3 py-1 text-xs font-semibold text-white/75">Loading historical data...</p>
+        </div>
+        <div class="grid grid-cols-3 gap-2 sm:flex sm:flex-nowrap sm:gap-3">
+          <label class="flex min-w-0 flex-1 flex-col gap-1.5 text-[0.6rem] font-bold uppercase tracking-[0.1em] text-white/55 sm:text-[0.65rem] sm:tracking-[0.14em]" for="timeline-range">
+            Period
+            <select id="timeline-range" class="w-full min-w-0 rounded-lg border border-white/15 bg-white/10 px-1.5 py-2.5 text-xs font-semibold normal-case tracking-normal text-white outline-none transition focus:border-citrus focus:ring-2 focus:ring-citrus/30 sm:px-3 sm:text-sm">
+              <option value="week">Last week</option>
+              <option value="month">Last month</option>
+              <option value="sixMonths">Last 6 months</option>
+            </select>
+          </label>
+          <label class="flex min-w-0 flex-1 flex-col gap-1.5 text-[0.6rem] font-bold uppercase tracking-[0.1em] text-white/55 sm:text-[0.65rem] sm:tracking-[0.14em]" for="timeline-state">
+            State
+            <select id="timeline-state" class="w-full min-w-0 rounded-lg border border-white/15 bg-white/10 px-1.5 py-2.5 text-xs font-semibold normal-case tracking-normal text-white outline-none transition focus:border-citrus focus:ring-2 focus:ring-citrus/30 sm:px-3 sm:text-sm">
+              <option value="">All states</option>
+            </select>
+          </label>
+          <label class="flex min-w-0 flex-1 flex-col gap-1.5 text-[0.6rem] font-bold uppercase tracking-[0.1em] text-white/55 sm:text-[0.65rem] sm:tracking-[0.14em]" for="timeline-product">
+            Fuel
+            <select id="timeline-product" class="w-full min-w-0 rounded-lg border border-white/15 bg-white/10 px-1.5 py-2.5 text-xs font-semibold normal-case tracking-normal text-white outline-none transition focus:border-citrus focus:ring-2 focus:ring-citrus/30 sm:px-3 sm:text-sm">
+              <option value="Regular" selected>Regular</option>
+              <option value="Premium">Premium</option>
+              <option value="Diésel">Diésel</option>
+            </select>
+          </label>
+        </div>
+      </div>
+      <div class="timeline-chart-surface relative mt-4 min-h-[20rem] flex-1 overflow-hidden rounded-xl p-2.5 sm:mt-5 sm:p-4">
+        <canvas id="timeline-chart" aria-label="Fuel prices over time"></canvas>
+      </div>
+    </section>
+
+    <div id="view-snapshot" data-view hidden>
     <section class="my-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Market summary">
       <article class="rounded-2xl bg-white p-5 ring-1 ring-ink/10">
         <p class="text-xs font-bold uppercase tracking-[0.16em] text-moss">Cheapest state</p>
@@ -131,32 +265,9 @@
       </article>
     </section>
 
-    <section class="my-6 overflow-hidden rounded-2xl bg-[#20382d] p-5 text-white sm:p-7">
-      <div class="flex flex-col gap-4 border-b border-white/15 pb-5 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p class="text-xs font-bold uppercase tracking-[0.18em] text-citrus">Price history</p>
-          <h2 class="mt-2 text-xl font-bold">The market over time</h2>
-          <p id="timeline-message" class="mt-1 text-sm text-white/60">Loading historical data...</p>
-        </div>
-        <div class="flex flex-wrap gap-2">
-          <label class="sr-only" for="timeline-range">Time range</label>
-          <select id="timeline-range" class="rounded-full border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold text-white focus:border-citrus focus:outline-none">
-            <option value="week">Last week</option>
-            <option value="month">Last month</option>
-            <option value="sixMonths">Last 6 months</option>
-          </select>
-          <label class="sr-only" for="timeline-state">State</label>
-          <select id="timeline-state" class="rounded-full border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold text-white focus:border-citrus focus:outline-none">
-            <option value="">All states</option>
-          </select>
-        </div>
-      </div>
-      <div class="relative mt-6 h-80 sm:h-96">
-        <canvas id="timeline-chart" aria-label="Fuel prices over time"></canvas>
-      </div>
-    </section>
+    </div>
 
-    <section class="mb-6 overflow-hidden rounded-2xl bg-white ring-1 ring-ink/10">
+    <section id="view-map" data-view class="my-6 overflow-hidden rounded-2xl bg-white ring-1 ring-ink/10" hidden>
       <div class="flex flex-col gap-3 border-b border-ink/10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-7">
         <div>
           <p class="text-xs font-bold uppercase tracking-[0.18em] text-moss">Geographic view</p>
@@ -172,7 +283,7 @@
       <div id="mexico-map" class="h-[26rem] w-full bg-[#dfe8df] sm:h-[34rem]" aria-label="Map of average fuel prices by Mexican state"></div>
     </section>
 
-    <section class="mb-6 overflow-hidden rounded-2xl bg-white ring-1 ring-ink/10">
+    <section id="view-averages" data-view class="my-6 overflow-hidden rounded-2xl bg-white ring-1 ring-ink/10" hidden>
       <div class="flex items-center justify-between border-b border-ink/10 px-5 py-4 sm:px-7">
         <div>
           <h2 class="text-lg font-bold">State averages</h2>
@@ -191,7 +302,7 @@
       </div>
     </section>
 
-    <section class="overflow-hidden rounded-2xl bg-white ring-1 ring-ink/10">
+    <section id="view-listings" data-view class="my-6 overflow-hidden rounded-2xl bg-white ring-1 ring-ink/10" hidden>
       <div class="flex items-center justify-between border-b border-ink/10 px-5 py-4 sm:px-7">
         <div>
           <h2 class="text-lg font-bold">Current listings</h2>
@@ -209,6 +320,8 @@
         </table>
       </div>
     </section>
+      </div>
+    </div>
 
     <footer class="flex flex-col gap-2 py-6 text-xs text-ink/45 sm:flex-row sm:items-center sm:justify-between">
       <span>Data from CNE</span>

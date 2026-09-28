@@ -14,6 +14,7 @@ const stateChartMessage = document.querySelector('#state-chart-message');
 const stateChartProduct = document.querySelector('#state-chart-product');
 const timelineRange = document.querySelector('#timeline-range');
 const timelineState = document.querySelector('#timeline-state');
+const timelineProduct = document.querySelector('#timeline-product');
 const timelineMessage = document.querySelector('#timeline-message');
 const mapMessage = document.querySelector('#map-message');
 const mapLegend = document.querySelector('#map-legend');
@@ -27,9 +28,11 @@ const biggestSpreadState = document.querySelector('#biggest-spread-state');
 const biggestSpreadValue = document.querySelector('#biggest-spread-value');
 const nationalAverages = document.querySelector('#national-averages');
 const lastUpdated = document.querySelector('#last-updated');
+const parsedRecordCount = document.querySelector('#parsed-record-count');
 let fuelChart;
 let stateChart;
 let timelineChart;
+let timelineData;
 let mexicoMap;
 let mexicoLayer;
 let mapProduct = 'Regular';
@@ -54,6 +57,15 @@ function formatPrice(value) {
   return new Intl.NumberFormat('es-MX', {
     style: 'currency',
     currency: 'MXN'
+  }).format(value);
+}
+
+function formatTimelinePrice(value) {
+  return new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    minimumFractionDigits: 4,
+    maximumFractionDigits: 4
   }).format(value);
 }
 
@@ -225,6 +237,8 @@ function renderMap(averages) {
   mapHighlights.innerHTML = `<span class="rounded-full bg-[#dcebdc] px-3 py-1 text-[#315d45]">Lowest: ${escapeHtml(cheapest?.State || '-')} ${escapeHtml(formatPrice(minimum))}</span><span class="rounded-full bg-[#f9e0d8] px-3 py-1 text-[#a84f35]">Highest: ${escapeHtml(expensive?.State || '-')} ${escapeHtml(formatPrice(maximum))}</span>`;
   renderSummaryCards(averages, mapProduct);
 
+  if (document.querySelector('#view-map').hidden) return;
+
   if (!mexicoMap) {
     mexicoMap = L.map('mexico-map', { zoomControl: false, attributionControl: true }).setView([23.7, -102.5], 5);
     L.control.zoom({ position: 'bottomright' }).addTo(mexicoMap);
@@ -356,8 +370,16 @@ function downloadCsv(rows, filename) {
 
 function renderTimeline(data) {
   const products = ['Regular', 'Premium', 'Diésel'];
-  const colors = { Regular: '#d9e86c', Premium: '#f28f6b', Diésel: '#9fc7ba' };
+  const visibleProducts = products.filter((product) => product === timelineProduct.value);
+  const colors = { Regular: '#235a3b', Premium: '#c3422f', Diésel: '#087a9e' };
   const snapshots = data.snapshots || [];
+  const timelineValues = snapshots
+    .flatMap((snapshot) => visibleProducts.map((product) => snapshot[product]))
+    .filter((value) => value !== null && value !== undefined && Number.isFinite(Number(value)))
+    .map(Number);
+  const lowestPrice = timelineValues.length ? Math.min(...timelineValues) : undefined;
+  const highestPrice = timelineValues.length ? Math.max(...timelineValues) : undefined;
+  const axisPadding = timelineValues.length ? Math.max((highestPrice - lowestPrice) * 0.12, 0.0005) : 0;
   timelineMessage.textContent = snapshots.length
     ? `${snapshots.length} snapshot${snapshots.length === 1 ? '' : 's'} for ${data.state}.`
     : 'No snapshots are available for this period yet.';
@@ -366,25 +388,46 @@ function renderTimeline(data) {
     type: 'line',
     data: {
       labels: snapshots.map((snapshot) => new Intl.DateTimeFormat('en-MX', { month: 'short', day: 'numeric' }).format(new Date(snapshot.scrapedAt))),
-      datasets: products.map((product) => ({
+      datasets: visibleProducts.map((product) => ({
         label: product,
         data: snapshots.map((snapshot) => snapshot[product] ?? null),
         borderColor: colors[product],
         backgroundColor: colors[product],
-        pointRadius: snapshots.length === 1 ? 5 : 3,
-        pointHoverRadius: 6,
-        borderWidth: 3,
-        tension: 0.35,
+        pointRadius: snapshots.length > 60 ? 3.5 : 4.5,
+        pointHoverRadius: 7,
+        pointHitRadius: 10,
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 2,
+        borderWidth: 4,
+        tension: 0.32,
         spanGaps: true
       }))
     },
     options: {
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
-      plugins: { legend: { labels: { color: '#ffffff', usePointStyle: true, boxWidth: 8 } } },
+      plugins: {
+        legend: { position: 'top', align: 'start', labels: { color: 'rgba(23,33,27,0.72)', usePointStyle: true, pointStyle: 'circle', boxWidth: 8, boxHeight: 8, padding: 20, font: { size: 12, weight: '600' } } },
+        tooltip: {
+          backgroundColor: '#14251d',
+          borderColor: 'rgba(255,255,255,0.16)',
+          borderWidth: 1,
+          titleColor: '#d9e86c',
+          bodyColor: '#ffffff',
+          padding: 12,
+          displayColors: true,
+          callbacks: { label: (context) => `${context.dataset.label}: ${formatTimelinePrice(context.parsed.y)} / L` }
+        }
+      },
       scales: {
-        x: { ticks: { color: '#ffffff' }, grid: { color: 'rgba(255,255,255,0.08)' } },
-        y: { ticks: { color: '#ffffff', callback: (value) => `$${value}` }, grid: { color: 'rgba(255,255,255,0.12)' } }
+        x: { border: { display: false }, ticks: { color: 'rgba(23,33,27,0.62)', maxRotation: 0, autoSkip: true }, grid: { display: false } },
+        y: {
+          min: lowestPrice === undefined ? undefined : Math.max(0, lowestPrice - axisPadding),
+          max: highestPrice === undefined ? undefined : highestPrice + axisPadding,
+          border: { display: false },
+          ticks: { color: 'rgba(23,33,27,0.62)', callback: (value) => formatTimelinePrice(Number(value)) },
+          grid: { color: 'rgba(23,33,27,0.2)', lineWidth: 1, drawOnChartArea: true, drawTicks: true, tickLength: 6 }
+        }
       }
     }
   });
@@ -401,6 +444,7 @@ async function loadTimeline() {
       timelineState.innerHTML = '<option value="">All states</option>' + data.states.map((state) => `<option value="${escapeHtml(state)}">${escapeHtml(state)}</option>`).join('');
       timelineState.dataset.loaded = 'true';
     }
+    timelineData = data;
     renderTimeline(data);
   } catch (error) {
     timelineMessage.textContent = 'Could not load historical gas prices.';
@@ -418,6 +462,10 @@ async function loadPrices() {
     lastUpdated.textContent = scrapedAt
       ? `Last updated ${new Intl.DateTimeFormat('en-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(scrapedAt))}`
       : 'Last updated unavailable';
+    if (Number.isFinite(data.parsedRecordCount)) {
+      parsedRecordCount.textContent = `${data.parsedRecordCount.toLocaleString('en-MX')} records parsed`;
+      parsedRecordCount.hidden = false;
+    }
     const rows = getFuelRows(data);
     fuelRows = rows;
     stateAverageRows = getStateAverages(rows);
@@ -434,5 +482,58 @@ downloadStateCsv.addEventListener('click', () => downloadCsv(stateAverageRows, '
 downloadTableCsv.addEventListener('click', () => downloadCsv(fuelRows, 'municipality-prices.csv'));
 timelineRange.addEventListener('change', loadTimeline);
 timelineState.addEventListener('change', loadTimeline);
+timelineProduct.addEventListener('change', () => {
+  if (timelineData) renderTimeline(timelineData);
+});
+const dashboardLayout = document.querySelector('#dashboard-layout');
+const pageShell = document.querySelector('#page-shell');
+const navCollapseToggle = document.querySelector('#nav-collapse-toggle');
+const viewPanels = [...document.querySelectorAll('[data-view]')];
+const viewButtons = [...document.querySelectorAll('[data-view-target]')];
+
+function activateView(viewId) {
+  viewPanels.forEach((panel) => {
+    const isActive = panel.id === viewId;
+    panel.hidden = !isActive;
+    panel.setAttribute('aria-hidden', String(!isActive));
+  });
+  viewButtons.forEach((button) => {
+    if (button.getAttribute('aria-controls') === viewId) button.setAttribute('aria-current', 'page');
+    else button.removeAttribute('aria-current');
+  });
+}
+
+navCollapseToggle.addEventListener('click', () => {
+  const willCollapse = pageShell.dataset.navCollapsed !== 'true';
+  dashboardLayout.dataset.navCollapsed = String(willCollapse);
+  pageShell.dataset.navCollapsed = String(willCollapse);
+  const label = willCollapse ? 'Expand navigation' : 'Collapse navigation';
+  navCollapseToggle.setAttribute('aria-expanded', String(!willCollapse));
+  navCollapseToggle.setAttribute('aria-label', label);
+  navCollapseToggle.title = label;
+});
+
+viewButtons.forEach((button) => {
+  button.addEventListener('click', () => {
+    const viewId = button.getAttribute('aria-controls');
+    activateView(viewId);
+
+    requestAnimationFrame(() => {
+      if (viewId === 'view-history') timelineChart?.resize();
+      if (viewId === 'view-snapshot') {
+        fuelChart?.resize();
+        stateChart?.resize();
+      }
+      if (viewId === 'view-map') {
+        renderMap(stateAverageRows);
+        if (mexicoMap) {
+          mexicoMap.invalidateSize();
+          if (mexicoLayer) mexicoMap.fitBounds(mexicoLayer.getBounds(), { padding: [12, 12] });
+        }
+      }
+    });
+  });
+});
+activateView(viewButtons.find((button) => button.getAttribute('aria-current') === 'page')?.getAttribute('aria-controls') || viewPanels[0]?.id);
 loadPrices();
 loadTimeline();
